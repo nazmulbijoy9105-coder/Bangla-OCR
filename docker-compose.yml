@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports: ["3000:3000"]
+    env_file: .env
+    depends_on: [redis]
+  paddle:
+    build: paddle.dockerfile
+    ports: ["5000:5000"]
+  redis:
+    image: redis:alpine

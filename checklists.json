@@ -1,0 +1,10 @@
+{
+  "nid": {
+    "fields": ["নাম", "পিতার নাম", "জন্ম তারিখ", "NID নম্বর"],
+    "regex": ["\\d{17}", "ধানমন্ডি|মিরপুর|গুলশান"]
+  },
+  "passport": {
+    "fields": ["Passport No", "Date of Issue", "Date of Expiry"],
+    "priority": 95
+  }
+}

@@ -1,0 +1,16 @@
+# docker-compose.yml
+version: '3.8'
+services:
+  peopole-ocr:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ocr-models:/app/models
+    environment:
+      - REDIS_URL=redis://redis:6379
+  redis:
+    image: redis:alpine
+  paddle-worker:
+    build: paddle.docker
+    deploy: replica: 3
