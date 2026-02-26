@@ -1,23 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="bn">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Peopole Bangla OCR - Document Verification</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div id="app">
     <header>পিওপল ডকুমেন্ট ভেরিফিকেশন</header>
-    <div id="upload-zone" class="dropzone">Drag PDF/Image or Click</div>
-    <select id="lang-select">
-      <option value="ben+eng">বাংলা+ইংরেজি</option>
-      <option value="ben">শুধু বাংলা</option>
-    </select>
-    <div id="results"></div>
-    <div id="status">Ready</div>
+    <p class="tagline">পিডিএফ বা ছবি আপলোড করুন — বাংলা ও ইংরেজি টেক্সট চেনা হবে</p>
+    <div id="upload-zone" class="dropzone" role="button" tabindex="0" aria-label="Upload PDF or image">
+      <span class="dropzone-text">পিডিএফ বা ছবি এখানে টেনে আনুন অথবা ক্লিক করুন</span>
+      <input type="file" id="file-input" accept="image/*,.pdf" hidden>
+    </div>
+    <div class="controls">
+      <label for="lang-select">ভাষা:</label>
+      <select id="lang-select">
+        <option value="ben+eng">বাংলা+ইংরেজি</option>
+        <option value="ben">শুধু বাংলা</option>
+      </select>
+      <label for="doc-type">ডকুমেন্ট ধরন:</label>
+      <select id="doc-type">
+        <option value="nid">NID</option>
+        <option value="passport">পাসপোর্ট</option>
+      </select>
+    </div>
+    <div id="results" class="results" aria-live="polite"></div>
+    <div id="status" class="status" role="status" aria-live="polite">প্রস্তুত</div>
   </div>
+  <script src="ocr-hybrid.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

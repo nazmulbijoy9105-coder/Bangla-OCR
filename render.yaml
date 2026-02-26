@@ -1,0 +1,10 @@
+# Render Blueprint: Node Web Service (switch from Static Site to this)
+services:
+  - type: web
+    name: bangla-ocr
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production

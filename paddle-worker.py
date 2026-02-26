@@ -19,5 +19,8 @@ if __name__ == "__main__":
     else:
         result = ocr.ocr(file_path)
     
-    text = '\n'.join([line[1][0] for line in result[0]])
-    print(text)
+    if not result or not result[0]:
+        print('')
+    else:
+        text = '\n'.join([line[1][0] for line in result[0]])
+        print(text)
