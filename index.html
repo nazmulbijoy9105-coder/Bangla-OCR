@@ -9,29 +9,103 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-  <div id="app">
-    <header>পিওপল ডকুমেন্ট ভেরিফিকেশন</header>
-    <p class="tagline">পিডিএফ বা ছবি আপলোড করুন — বাংলা ও ইংরেজি টেক্সট চেনা হবে</p>
-    <div id="upload-zone" class="dropzone" role="button" tabindex="0" aria-label="Upload PDF or image">
-      <span class="dropzone-text">পিডিএফ বা ছবি এখানে টেনে আনুন অথবা ক্লিক করুন</span>
-      <input type="file" id="file-input" accept="image/*,.pdf" hidden>
-    </div>
-    <div class="controls">
-      <label for="lang-select">ভাষা:</label>
-      <select id="lang-select">
-        <option value="ben+eng">বাংলা+ইংরেজি</option>
-        <option value="ben">শুধু বাংলা</option>
-      </select>
-      <label for="doc-type">ডকুমেন্ট ধরন:</label>
-      <select id="doc-type">
-        <option value="nid">NID</option>
-        <option value="passport">পাসপোর্ট</option>
-      </select>
-    </div>
-    <div id="results" class="results" aria-live="polite"></div>
-    <div id="status" class="status" role="status" aria-live="polite">প্রস্তুত</div>
+  <div id="page">
+    <header class="top-bar">
+      <div class="brand">
+        <div class="logo-circle">PB</div>
+        <div class="brand-text">
+          <div class="brand-name">Peopole Bangla OCR</div>
+          <div class="brand-sub">Smart Document Verification</div>
+        </div>
+      </div>
+      <div class="developer">
+        Developed by <span>Adv&nbsp;Bijoy</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- LEFT: Upload & status -->
+      <section class="panel panel-main">
+        <h1 class="hero-title">বাংলা ডকুমেন্ট, সেকেন্ডের মধ্যে যাচাই</h1>
+        <p class="hero-subtitle">
+          NID, পাসপোর্ট, ব্যাংক স্টেটমেন্ট সহ গুরুত্বপূর্ণ ডকুমেন্ট দ্রুত ও নির্ভুলভাবে যাচাই করুন।
+          ব্রাউজার-ভিত্তিক Tesseract + সার্ভার সাইড PaddleOCR হাইব্রিড সিস্টেম।
+        </p>
+
+        <div id="upload-zone" class="dropzone" role="button" tabindex="0"
+             aria-label="Upload PDF or image for Bangla OCR">
+          <div class="dropzone-icon">⬆</div>
+          <div class="dropzone-text">
+            পিডিএফ / ছবি এখানে টেনে আনুন<br>অথবা ক্লিক করে সিলেক্ট করুন
+          </div>
+          <div class="dropzone-hint">Supported: JPG, PNG, PDF • Up to ~25MB</div>
+          <input type="file" id="file-input" accept="image/*,.pdf" hidden>
+        </div>
+
+        <div class="controls">
+          <div class="control-group">
+            <label for="lang-select">ভাষা</label>
+            <select id="lang-select">
+              <option value="ben+eng">বাংলা + ইংরেজি</option>
+              <option value="ben">শুধু বাংলা</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="doc-type">ডকুমেন্ট টাইপ</label>
+            <select id="doc-type">
+              <option value="nid">NID</option>
+              <option value="passport">Passport</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite">
+          প্রস্তুত – কোনও ডকুমেন্ট আপলোড করুন
+        </div>
+      </section>
+
+      <!-- RIGHT: Features + results -->
+      <section class="panel panel-side">
+        <h2 class="section-title">সিস্টেম স্পেসিফিকেশন</h2>
+        <ul class="features-list">
+          <li>
+            <h3>Hybrid OCR Engine</h3>
+            <p>Browser Tesseract.js + Server PaddleOCR মিলিয়ে উচ্চ নির্ভুলতা Bangla OCR।</p>
+          </li>
+          <li>
+            <h3>Supported Documents</h3>
+            <p>NID, Passport, Bank Documents, KYC Forms এবং সাধারণ বাংলা ডকুমেন্ট।</p>
+          </li>
+          <li>
+            <h3>Smart Field Extraction</h3>
+            <p>নাম, পিতার নাম, জন্ম তারিখ, NID নম্বর ইত্যাদি অটো-এক্সট্রাকশন (rules from checklist)।</p>
+          </li>
+          <li>
+            <h3>Privacy First</h3>
+            <p>টেক্সট প্রক্রিয়াকরণ অটোমেটেড; কোনও UI-তে ডেটা সেভ রাখা হয় না।</p>
+          </li>
+        </ul>
+
+        <div id="results" class="results" aria-live="polite">
+          <div class="placeholder">
+            ডকুমেন্ট আপলোড করার পর এখানে এক্সট্র্যাক্টেড ফিল্ড ও কাঁচা টেক্সট দেখা যাবে।
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>© <span id="year"></span> Peopole Bangla OCR</span>
+      <span class="footer-divider">•</span>
+      <span>Professional Document Verification Suite by <strong>Adv&nbsp;Bijoy</strong></span>
+    </footer>
   </div>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
   <script src="ocr-hybrid.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
+
