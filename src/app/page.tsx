@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Tesseract from "tesseract.js";
+import * as pdfjsLib from "pdfjs-dist";
 
 export type Language = "bangla" | "english" | "both";
 
@@ -9,26 +10,66 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<"image" | "pdf" | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [extractedText, setExtractedText] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [language, setLanguage] = useState<Language>("bangla");
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("");
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [keyboardType, setKeyboardType] = useState<"avro" | "bijoy">("avro");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pdfPageCount, setPdfPageCount] = useState(0);
+  const [currentPdfPage, setCurrentPdfPage] = useState(0);
 
-  const handleFileSelect = useCallback((file: File) => {
+  // Set PDF.js worker
+  useEffect(() => {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  }, []);
+
+  const handleFileSelect = useCallback(async (file: File) => {
     if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
       setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      setExtractedText("");
       
       if (file.type.startsWith("image/")) {
         setFileType("image");
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+        setPreviewUrls([url]);
+        setPdfPageCount(0);
       } else if (file.type === "application/pdf") {
         setFileType("pdf");
+        setStatus("Loading PDF...");
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          setPdfPageCount(pdf.numPages);
+          setCurrentPdfPage(1);
+          
+          // Generate preview for first page
+          const page = await pdf.getPage(1);
+          const scale = 1.5;
+          const viewport = page.getViewport({ scale });
+          
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          if (context) {
+            await page.render({ canvasContext: context, viewport, canvas }).promise;
+            const url = canvas.toDataURL("image/png");
+            setPreviewUrl(url);
+            setPreviewUrls([url]);
+          }
+        } catch (error) {
+          console.error("Error loading PDF:", error);
+          setExtractedText("Error loading PDF. Please try another file.");
+        }
+        setStatus("");
       }
-      
-      setExtractedText("");
     }
   }, []);
 
@@ -65,7 +106,6 @@ export default function Home() {
   const handleOCRProcess = async () => {
     if (!selectedFile) return;
 
-    // Debug: Log file info
     console.log("OCR Processing - File:", selectedFile.name, "Type:", selectedFile.type, "Size:", selectedFile.size);
 
     setIsProcessing(true);
@@ -73,31 +113,55 @@ export default function Home() {
     setStatus("Initializing OCR engine...");
 
     try {
-      // Check if file is a PDF - Tesseract.js doesn't support PDFs natively
+      let imageBlobs: Blob[] = [];
+
+      // Handle PDF - convert pages to images
       if (selectedFile.type === "application/pdf") {
-        setExtractedText("Error: PDF files are not supported. Please convert your PDF to an image (PNG, JPG) and try again.");
+        setStatus("Converting PDF to images...");
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        const numPages = pdf.numPages;
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          setStatus(`Converting page ${pageNum} of ${numPages}...`);
+          const page = await pdf.getPage(pageNum);
+          const scale = 2.0; // Higher scale for better OCR
+          const viewport = page.getViewport({ scale });
+          
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          if (context) {
+            await page.render({ canvasContext: context, viewport, canvas }).promise;
+            const blob = await new Promise<Blob>((resolve) => {
+              canvas.toBlob((b) => resolve(b!), "image/png");
+            });
+            imageBlobs.push(blob);
+          }
+        }
+      } else if (selectedFile.type.startsWith("image/")) {
+        // Validate file is an image
+        if (!selectedFile.type.startsWith("image/")) {
+          setExtractedText("Error: Invalid file type. Please upload an image file (PNG, JPG, JPEG, BMP).");
+          setIsProcessing(false);
+          setStatus("");
+          return;
+        }
+
+        // Convert file to a clean Blob
+        const imageResponse = await fetch(URL.createObjectURL(selectedFile));
+        const imageBlob = await imageResponse.blob();
+        const imageArrayBuffer = await imageBlob.arrayBuffer();
+        const cleanBlob = new Blob([imageArrayBuffer], { type: selectedFile.type });
+        imageBlobs.push(cleanBlob);
+      } else {
+        setExtractedText("Error: Unsupported file type. Please upload an image or PDF.");
         setIsProcessing(false);
         setStatus("");
         return;
       }
-
-      // Validate file is an image
-      if (!selectedFile.type.startsWith("image/")) {
-        setExtractedText("Error: Invalid file type. Please upload an image file (PNG, JPG, JPEG, BMP).");
-        setIsProcessing(false);
-        setStatus("");
-        return;
-      }
-
-      // Convert file to a format Tesseract.js can read reliably
-      // Create a new Blob with explicit image type
-      const imageResponse = await fetch(URL.createObjectURL(selectedFile));
-      const imageBlob = await imageResponse.blob();
-      const imageArrayBuffer = await imageBlob.arrayBuffer();
-      
-      // Create a clean blob for Tesseract
-      const cleanBlob = new Blob([imageArrayBuffer], { type: selectedFile.type });
-      console.log("OCR Processing - Cleaned blob type:", cleanBlob.type, "Size:", cleanBlob.size);
 
       // Determine which languages to use
       let languages: string[];
@@ -115,36 +179,43 @@ export default function Home() {
 
       const langString = languages.join("+");
       
-      const result = await Tesseract.recognize(
-        cleanBlob,
-        langString,
-        {
-          logger: (m) => {
-            console.log("OCR Logger:", m);
-            if (m.status === "recognizing text") {
-              setProgress(Math.round(m.progress * 100));
-              setStatus(`Recognizing text... ${Math.round(m.progress * 100)}%`);
-            } else {
-              setStatus(m.status);
-            }
-          },
+      // Process each image and combine results
+      let allExtractedText: string[] = [];
+      
+      for (let i = 0; i < imageBlobs.length; i++) {
+        setStatus(`Processing page ${i + 1} of ${imageBlobs.length}...`);
+        
+        const result = await Tesseract.recognize(
+          imageBlobs[i],
+          langString,
+          {
+            logger: (m) => {
+              console.log("OCR Logger:", m);
+              if (m.status === "recognizing text") {
+                const pageProgress = Math.round(m.progress * 100);
+                const overallProgress = Math.round(((i * 100) + pageProgress) / imageBlobs.length);
+                setProgress(overallProgress);
+                setStatus(`Page ${i + 1}: Recognizing text... ${pageProgress}%`);
+              } else {
+                setStatus(m.status);
+              }
+            },
+          }
+        );
+        
+        if (result.data.text.trim()) {
+          allExtractedText.push(result.data.text.trim());
         }
-      );
-
-      let extracted = result.data.text.trim();
-
-      // If both languages, separate the results
-      if (language === "both" && languages.length === 2) {
-        // Tesseract returns combined results, we'll show it as is
-        // The model tries to detect and recognize both languages
-        extracted = `🇧🇩 বাংলা + 🇬🇧 English:\n\n${extracted}`;
-      } else if (language === "bangla") {
-        extracted = `🇧🇩 বাংলা:\n\n${extracted}`;
-      } else {
-        extracted = `🇬🇧 English:\n\n${extracted}`;
       }
 
-      setExtractedText(extracted || "No text detected in the image.");
+      // Combine results
+      let extracted = allExtractedText.join("\n\n--- Page ---\n\n");
+
+      // Format output based on language
+      const langLabel = language === "bangla" ? "🇧🇩 বাংলা" : language === "english" ? "🇬🇧 English" : "🇧🇩 বাংলা + 🇬🇧 English";
+      const pageInfo = imageBlobs.length > 1 ? ` (${imageBlobs.length} pages)` : "";
+      
+      setExtractedText(`${langLabel}${pageInfo}:\n\n${extracted}` || "No text detected in the image.");
     } catch (error) {
       console.error("OCR processing failed:", error);
       // Provide more specific error message based on the error type
@@ -178,6 +249,73 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Hidden canvas for PDF rendering */}
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+      
+      {/* Keyboard Modal */}
+      {showKeyboard && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowKeyboard(false)}>
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white text-xl font-bold">
+                {keyboardType === "avro" ? "🔤 Avro Phonetic Keyboard" : "⌨️ Bijoy Keyboard"}
+              </h3>
+              <button onClick={() => setShowKeyboard(false)} className="text-slate-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setKeyboardType("avro")}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  keyboardType === "avro" ? "bg-purple-600 text-white" : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                Avro Phonetic
+              </button>
+              <button
+                onClick={() => setKeyboardType("bijoy")}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  keyboardType === "bijoy" ? "bg-purple-600 text-white" : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                Bijoy Classic
+              </button>
+            </div>
+            <div className="bg-slate-900 rounded-xl p-4 mb-4">
+              <textarea
+                className="w-full h-32 bg-slate-800 text-white rounded-lg p-3 text-lg font-[family-name:var(--font-noto-bengali)]"
+                placeholder={keyboardType === "avro" ? "Type in Avro Phonetic (e.g., ami bangla shikhi)" : "Type in Bijoy (e.g., v b mgm fvzmB )"}
+              />
+            </div>
+            <div className="text-slate-400 text-sm">
+              <p className="mb-2">💡 <strong>Quick Reference:</strong></p>
+              {keyboardType === "avro" ? (
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div>aa → আ</div><div>ee → ঈ</div>
+                  <div>ii → ই</div><div>oo → উ</div>
+                  <div>u → উ</div><div>a → অ</div>
+                  <div>i → ি</div><div>u → ু</div>
+                  <div>kha → খ</div><div>gho → ঘ</div>
+                  <div>sh → শ</div><div>ng → ং</div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div>dv → আ</div><div>dn → ঈ</div>
+                  <div>dm → ই</div><div>do → উ</div>
+                  <div>d → অ</div><div>» → ি</div>
+                  <div>‡ → ু</div><div>‡j → খ</div>
+                  <div>‡g → ঘ</div><div>†v → শ</div>
+                  <div>†m → ং</div><div>¨ → ঁ</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="py-8 px-4">
         <div className="max-w-4xl mx-auto text-center">
@@ -185,8 +323,19 @@ export default function Home() {
             <span className="text-purple-400">Bangla & English</span> OCR
           </h1>
           <p className="text-slate-400 text-lg">
-            Extract text from Bangla/Bengali and English images instantly
+            Extract text from Bangla/Bengali and English images and PDFs instantly
           </p>
+          <div className="flex justify-center gap-4 mt-4">
+            <button
+              onClick={() => setShowKeyboard(true)}
+              className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              Bangla Keyboards
+            </button>
+          </div>
         </div>
       </header>
 
@@ -282,7 +431,7 @@ export default function Home() {
                   </p>
                 </div>
                 <p className="text-slate-500 text-xs">
-                  Supports PNG, JPG, JPEG, BMP images and PDF documents
+                  Supports PNG, JPG, JPEG, BMP images and multi-page PDF documents
                 </p>
               </div>
             )}
