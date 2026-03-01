@@ -20,6 +20,8 @@ A modern Bangla/Bengali OCR web application has been built using Next.js 16 with
 - [x] Language selector for Bangla/English/Both OCR
 - [x] **Real OCR with Tesseract.js** - Client-side OCR for actual text extraction
 - [x] **Fixed OCR error handling** - PDF detection, file validation, improved error messages
+- [x] **PDF OCR Support** - Convert PDF pages to images using pdf.js for OCR processing
+- [x] **Bangla Keyboard Reference** - Added Avro and Bijoy keyboard reference modal
 
 ## Current Structure
 
@@ -44,6 +46,8 @@ A modern Bangla/Bengali OCR web application has been built using Next.js 16 with
 9. **Real OCR** - Uses Tesseract.js for actual Bengali and English text recognition
 10. **Progress Tracking** - Shows OCR progress and status during processing
 11. **Error Handling** - Clear messages for PDF files and invalid images
+12. **Multi-page PDF OCR** - Convert and process PDF pages to images
+13. **Bangla Keyboard Reference** - Avro and Bijoy keyboard reference modal
 
 ## Current Focus
 
@@ -57,6 +61,8 @@ The Bangla OCR web interface now has **real OCR capabilities**. Using Tesseract.
    - PDFs now show clear error: "PDF files are not supported"
    - Invalid files are validated before processing
    - File objects converted to clean Blob for reliable OCR
+6. Adding PDF OCR support with pdf.js
+7. Adding Bangla keyboard reference (Avro & Bijoy)
 
 ## Quick Start Guide
 
@@ -125,3 +131,4 @@ export async function GET() {
 | Initial | Template created with base setup |
 | 2026-03-01 | Implemented Bangla OCR web interface with drag-drop upload, OCR API route, and Bengali font support |
 | 2026-03-01 | Fixed OCR "Error attempting to read image" - Added PDF detection, file validation, and improved error handling |
+| 2026-03-01 | Added PDF OCR support using pdf.js and Bangla keyboard reference modal |
