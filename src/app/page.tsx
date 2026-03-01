@@ -284,7 +284,25 @@ export default function Home() {
                 Extracted Text
               </h2>
               <button
-                onClick={() => navigator.clipboard.writeText(extractedText)}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(extractedText);
+                  } catch {
+                    // Fallback for environments where clipboard API is blocked
+                    const textArea = document.createElement('textarea');
+                    textArea.value = extractedText;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-9999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                      document.execCommand('copy');
+                    } catch {
+                      alert('Unable to copy. Please select and copy the text manually.');
+                    }
+                    document.body.removeChild(textArea);
+                  }
+                }}
                 className="text-slate-400 hover:text-white transition-colors p-2"
                 title="Copy to clipboard"
               >
