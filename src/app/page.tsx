@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 
+export type Language = "bangla" | "english" | "both";
+
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<"image" | "pdf" | null>(null);
@@ -10,6 +12,7 @@ export default function Home() {
   const [extractedText, setExtractedText] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [language, setLanguage] = useState<Language>("bangla");
 
   const handleFileSelect = useCallback((file: File) => {
     if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
@@ -65,6 +68,7 @@ export default function Home() {
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
+      formData.append("language", language);
 
       const response = await fetch("/api/ocr", {
         method: "POST",
@@ -94,10 +98,10 @@ export default function Home() {
       <header className="py-8 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
-            <span className="text-purple-400">Bangla</span> OCR
+            <span className="text-purple-400">Bangla & English</span> OCR
           </h1>
           <p className="text-slate-400 text-lg">
-            Extract text from Bangla/Bengali images instantly
+            Extract text from Bangla/Bengali and English images instantly
           </p>
         </div>
       </header>
@@ -207,6 +211,44 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Language Selector */}
+        {selectedFile && (
+          <div className="flex justify-center mb-8">
+            <div className="bg-slate-800/50 backdrop-blur rounded-xl border border-slate-700 p-2 flex gap-2">
+              <button
+                onClick={() => setLanguage("bangla")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  language === "bangla"
+                    ? "bg-purple-600 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                🇧🇩 বাংলা
+              </button>
+              <button
+                onClick={() => setLanguage("english")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  language === "english"
+                    ? "bg-purple-600 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                🇬🇧 English
+              </button>
+              <button
+                onClick={() => setLanguage("both")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  language === "both"
+                    ? "bg-purple-600 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                🔤 Both
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Action Button */}
         {selectedFile && (
           <div className="flex justify-center mb-8">
@@ -255,7 +297,7 @@ export default function Home() {
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                  Extract Bangla Text
+                  {language === "bangla" ? "Extract Bangla Text" : language === "english" ? "Extract English Text" : "Extract Bangla & English Text"}
                 </>
               )}
             </button>
