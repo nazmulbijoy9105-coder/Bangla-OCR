@@ -4,17 +4,25 @@ import { useState, useCallback } from "react";
 import Image from "next/image";
 
 export default function Home() {
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileType, setFileType] = useState<"image" | "pdf" | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
-  const handleImageSelect = useCallback((file: File) => {
-    if (file && file.type.startsWith("image/")) {
-      setSelectedImage(file);
+  const handleFileSelect = useCallback((file: File) => {
+    if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
+      setSelectedFile(file);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
+      
+      if (file.type.startsWith("image/")) {
+        setFileType("image");
+      } else if (file.type === "application/pdf") {
+        setFileType("pdf");
+      }
+      
       setExtractedText("");
     }
   }, []);
@@ -24,10 +32,10 @@ export default function Home() {
       e.preventDefault();
       setDragActive(false);
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleImageSelect(e.dataTransfer.files[0]);
+        handleFileSelect(e.dataTransfer.files[0]);
       }
     },
-    [handleImageSelect]
+    [handleFileSelect]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -43,20 +51,20 @@ export default function Home() {
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-        handleImageSelect(e.target.files[0]);
+        handleFileSelect(e.target.files[0]);
       }
     },
-    [handleImageSelect]
+    [handleFileSelect]
   );
 
   const handleOCRProcess = async () => {
-    if (!selectedImage) return;
+    if (!selectedFile) return;
 
     setIsProcessing(true);
 
     try {
       const formData = new FormData();
-      formData.append("image", selectedImage);
+      formData.append("file", selectedFile);
 
       const response = await fetch("/api/ocr", {
         method: "POST",
@@ -67,15 +75,16 @@ export default function Home() {
       setExtractedText(data.text || "");
     } catch (error) {
       console.error("OCR processing failed:", error);
-      setExtractedText("Error processing image. Please try again.");
+      setExtractedText("Error processing file. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleReset = () => {
-    setSelectedImage(null);
+    setSelectedFile(null);
     setPreviewUrl(null);
+    setFileType(null);
     setExtractedText("");
   };
 
@@ -110,15 +119,35 @@ export default function Home() {
             {previewUrl ? (
               <div className="space-y-6">
                 <div className="relative inline-block">
-                  <img
-                    src={previewUrl}
-                    alt="Selected image"
-                    className="max-h-64 rounded-lg shadow-2xl border border-slate-600"
-                  />
+                  {fileType === "image" ? (
+                    <img
+                      src={previewUrl || ""}
+                      alt="Selected file"
+                      className="max-h-64 rounded-lg shadow-2xl border border-slate-600"
+                    />
+                  ) : fileType === "pdf" ? (
+                    <div className="w-48 h-64 rounded-lg shadow-2xl border border-slate-600 bg-slate-700 flex flex-col items-center justify-center p-4">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-16 w-16 text-red-400 mb-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <span className="text-white text-sm text-center">PDF Document</span>
+                    </div>
+                  ) : null}
                   <button
                     onClick={handleReset}
                     className="absolute -top-3 -right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-colors"
-                    aria-label="Remove image"
+                    aria-label="Remove file"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -135,7 +164,7 @@ export default function Home() {
                   </button>
                 </div>
                 <p className="text-slate-400 text-sm">
-                  {selectedImage?.name} ({(selectedImage?.size ? selectedImage.size / 1024 : 0).toFixed(1)} KB)
+                  {selectedFile?.name} ({(selectedFile?.size ? selectedFile.size / 1024 : 0).toFixed(1)} KB)
                 </p>
               </div>
             ) : (
@@ -165,13 +194,13 @@ export default function Home() {
                   </p>
                 </div>
                 <p className="text-slate-500 text-xs">
-                  Supports PNG, JPG, JPEG, BMP formats
+                  Supports PNG, JPG, JPEG, BMP images and PDF documents
                 </p>
               </div>
             )}
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               onChange={handleFileChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
@@ -179,7 +208,7 @@ export default function Home() {
         </div>
 
         {/* Action Button */}
-        {selectedImage && (
+        {selectedFile && (
           <div className="flex justify-center mb-8">
             <button
               onClick={handleOCRProcess}
@@ -284,7 +313,7 @@ export default function Home() {
         )}
 
         {/* Features Section */}
-        {!selectedImage && (
+        {!selectedFile && (
           <div className="grid md:grid-cols-3 gap-6 mt-12">
             <div className="bg-slate-800/30 backdrop-blur rounded-xl p-6 border border-slate-700/50">
               <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
@@ -305,7 +334,7 @@ export default function Home() {
               </div>
               <h3 className="text-white font-semibold mb-2">Fast Processing</h3>
               <p className="text-slate-400 text-sm">
-                Extract Bangla text from images in seconds with advanced OCR technology
+                Extract Bangla text from images and PDFs in seconds with advanced OCR technology
               </p>
             </div>
             <div className="bg-slate-800/30 backdrop-blur rounded-xl p-6 border border-slate-700/50">
