@@ -25,7 +25,27 @@ export default function Home() {
 
   // Set PDF.js worker
   useEffect(() => {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    // Set up PDF.js worker for version 5.x
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url
+    ).toString();
+  }, []);
+
+  // Initialize Tesseract.js with proper worker (v7 API)
+  const initTesseractWorker = async () => {
+    try {
+      const worker = await Tesseract.createWorker('eng+ben');
+      console.log('Tesseract worker initialized successfully');
+      await worker.terminate();
+    } catch (err) {
+      console.error('Tesseract init error:', err);
+    }
+  };
+
+  useEffect(() => {
+    // Initialize on mount
+    initTesseractWorker();
   }, []);
 
   const handleFileSelect = useCallback(async (file: File) => {
@@ -142,20 +162,9 @@ export default function Home() {
           }
         }
       } else if (selectedFile.type.startsWith("image/")) {
-        // Validate file is an image
-        if (!selectedFile.type.startsWith("image/")) {
-          setExtractedText("Error: Invalid file type. Please upload an image file (PNG, JPG, JPEG, BMP).");
-          setIsProcessing(false);
-          setStatus("");
-          return;
-        }
-
-        // Convert file to a clean Blob
-        const imageResponse = await fetch(URL.createObjectURL(selectedFile));
-        const imageBlob = await imageResponse.blob();
-        const imageArrayBuffer = await imageBlob.arrayBuffer();
-        const cleanBlob = new Blob([imageArrayBuffer], { type: selectedFile.type });
-        imageBlobs.push(cleanBlob);
+        // Handle image files - convert to blob for Tesseract
+        const imageBlob = selectedFile;
+        imageBlobs.push(imageBlob);
       } else {
         setExtractedText("Error: Unsupported file type. Please upload an image or PDF.");
         setIsProcessing(false);
@@ -182,29 +191,25 @@ export default function Home() {
       // Process each image and combine results
       let allExtractedText: string[] = [];
       
-      for (let i = 0; i < imageBlobs.length; i++) {
-        setStatus(`Processing page ${i + 1} of ${imageBlobs.length}...`);
+      // Create Tesseract worker with explicit language (v7 API)
+      let worker: Tesseract.Worker | null = null;
+      try {
+        setStatus('Loading OCR engine...');
         
-        const result = await Tesseract.recognize(
-          imageBlobs[i],
-          langString,
-          {
-            logger: (m) => {
-              console.log("OCR Logger:", m);
-              if (m.status === "recognizing text") {
-                const pageProgress = Math.round(m.progress * 100);
-                const overallProgress = Math.round(((i * 100) + pageProgress) / imageBlobs.length);
-                setProgress(overallProgress);
-                setStatus(`Page ${i + 1}: Recognizing text... ${pageProgress}%`);
-              } else {
-                setStatus(m.status);
-              }
-            },
+        worker = await Tesseract.createWorker(langString);
+        
+        for (let i = 0; i < imageBlobs.length; i++) {
+          setStatus(`Processing page ${i + 1} of ${imageBlobs.length}...`);
+          
+          const result = await worker.recognize(imageBlobs[i]);
+          
+          if (result.data.text.trim()) {
+            allExtractedText.push(result.data.text.trim());
           }
-        );
-        
-        if (result.data.text.trim()) {
-          allExtractedText.push(result.data.text.trim());
+        }
+      } finally {
+        if (worker) {
+          await worker.terminate();
         }
       }
 
