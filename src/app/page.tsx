@@ -65,11 +65,40 @@ export default function Home() {
   const handleOCRProcess = async () => {
     if (!selectedFile) return;
 
+    // Debug: Log file info
+    console.log("OCR Processing - File:", selectedFile.name, "Type:", selectedFile.type, "Size:", selectedFile.size);
+
     setIsProcessing(true);
     setProgress(0);
     setStatus("Initializing OCR engine...");
 
     try {
+      // Check if file is a PDF - Tesseract.js doesn't support PDFs natively
+      if (selectedFile.type === "application/pdf") {
+        setExtractedText("Error: PDF files are not supported. Please convert your PDF to an image (PNG, JPG) and try again.");
+        setIsProcessing(false);
+        setStatus("");
+        return;
+      }
+
+      // Validate file is an image
+      if (!selectedFile.type.startsWith("image/")) {
+        setExtractedText("Error: Invalid file type. Please upload an image file (PNG, JPG, JPEG, BMP).");
+        setIsProcessing(false);
+        setStatus("");
+        return;
+      }
+
+      // Convert file to a format Tesseract.js can read reliably
+      // Create a new Blob with explicit image type
+      const imageResponse = await fetch(URL.createObjectURL(selectedFile));
+      const imageBlob = await imageResponse.blob();
+      const imageArrayBuffer = await imageBlob.arrayBuffer();
+      
+      // Create a clean blob for Tesseract
+      const cleanBlob = new Blob([imageArrayBuffer], { type: selectedFile.type });
+      console.log("OCR Processing - Cleaned blob type:", cleanBlob.type, "Size:", cleanBlob.size);
+
       // Determine which languages to use
       let languages: string[];
       switch (language) {
@@ -87,10 +116,11 @@ export default function Home() {
       const langString = languages.join("+");
       
       const result = await Tesseract.recognize(
-        selectedFile,
+        cleanBlob,
         langString,
         {
           logger: (m) => {
+            console.log("OCR Logger:", m);
             if (m.status === "recognizing text") {
               setProgress(Math.round(m.progress * 100));
               setStatus(`Recognizing text... ${Math.round(m.progress * 100)}%`);
@@ -117,7 +147,21 @@ export default function Home() {
       setExtractedText(extracted || "No text detected in the image.");
     } catch (error) {
       console.error("OCR processing failed:", error);
-      setExtractedText("Error processing file. Please try again.");
+      // Provide more specific error message based on the error type
+      let errorMessage = "Error processing file. Please try again.";
+      
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase();
+        if (errorMsg.includes("failed to decode") || errorMsg.includes("invalid image")) {
+          errorMessage = "Error: The image file appears to be corrupted or in an unsupported format. Please try a different image.";
+        } else if (errorMsg.includes("network") || errorMsg.includes("fetch")) {
+          errorMessage = "Error: Network error while processing. Please check your connection and try again.";
+        } else if (errorMsg.includes("memory")) {
+          errorMessage = "Error: Not enough memory to process this image. Please try a smaller image.";
+        }
+      }
+      
+      setExtractedText(errorMessage);
     } finally {
       setIsProcessing(false);
       setProgress(0);
