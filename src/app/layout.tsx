@@ -21,6 +21,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${notoSansBengali.variable} antialiased`}
+        suppressHydrationWarning
       >
         {children}
       </body>
