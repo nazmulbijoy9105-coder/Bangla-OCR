@@ -17,6 +17,7 @@ A modern Bangla/Bengali OCR web application has been built using Next.js 16 with
 - [x] Bangla OCR web interface implementation
 - [x] OCR API route with mock processing
 - [x] Noto Sans Bengali font integration
+- [x] Language selector for Bangla/English/Both OCR
 
 ## Current Structure
 
@@ -37,6 +38,7 @@ A modern Bangla/Bengali OCR web application has been built using Next.js 16 with
 5. **Copy to Clipboard** - Easy copy functionality for extracted text
 6. **Responsive Design** - Works on mobile and desktop devices
 7. **Modern UI** - Beautiful gradient design with purple/pink theme
+8. **Language Selector** - Choose between Bangla, English, or Both languages
 
 ## Current Focus
 
