@@ -18,6 +18,7 @@ A modern Bangla/Bengali OCR web application has been built using Next.js 16 with
 - [x] OCR API route with mock processing
 - [x] Noto Sans Bengali font integration
 - [x] Language selector for Bangla/English/Both OCR
+- [x] **Real OCR with Tesseract.js** - Client-side OCR for actual text extraction
 
 ## Current Structure
 
@@ -39,15 +40,17 @@ A modern Bangla/Bengali OCR web application has been built using Next.js 16 with
 6. **Responsive Design** - Works on mobile and desktop devices
 7. **Modern UI** - Beautiful gradient design with purple/pink theme
 8. **Language Selector** - Choose between Bangla, English, or Both languages
+9. **Real OCR** - Uses Tesseract.js for actual Bengali and English text recognition
+10. **Progress Tracking** - Shows OCR progress and status during processing
 
 ## Current Focus
 
-The Bangla OCR web interface is complete. Next steps could include:
+The Bangla OCR web interface now has **real OCR capabilities**. Using Tesseract.js for client-side text recognition.
 
-1. Integrating with actual Python Bangla-OCR backend
-2. Adding more image processing features
-3. Supporting multiple file uploads
-4. Adding history/persistence
+1. Adding more image processing features
+2. Supporting multiple file uploads
+3. Adding history/persistence
+4. Improving OCR accuracy with image preprocessing
 
 ## Quick Start Guide
 
