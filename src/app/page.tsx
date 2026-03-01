@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Image from "next/image";
+import Tesseract from "tesseract.js";
 
 export type Language = "bangla" | "english" | "both";
 
@@ -13,6 +13,8 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [language, setLanguage] = useState<Language>("bangla");
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("");
 
   const handleFileSelect = useCallback((file: File) => {
     if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
@@ -64,24 +66,62 @@ export default function Home() {
     if (!selectedFile) return;
 
     setIsProcessing(true);
+    setProgress(0);
+    setStatus("Initializing OCR engine...");
 
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("language", language);
+      // Determine which languages to use
+      let languages: string[];
+      switch (language) {
+        case "bangla":
+          languages = ["ben"];
+          break;
+        case "english":
+          languages = ["eng"];
+          break;
+        case "both":
+          languages = ["ben", "eng"];
+          break;
+      }
 
-      const response = await fetch("/api/ocr", {
-        method: "POST",
-        body: formData,
-      });
+      const langString = languages.join("+");
+      
+      const result = await Tesseract.recognize(
+        selectedFile,
+        langString,
+        {
+          logger: (m) => {
+            if (m.status === "recognizing text") {
+              setProgress(Math.round(m.progress * 100));
+              setStatus(`Recognizing text... ${Math.round(m.progress * 100)}%`);
+            } else {
+              setStatus(m.status);
+            }
+          },
+        }
+      );
 
-      const data = await response.json();
-      setExtractedText(data.text || "");
+      let extracted = result.data.text.trim();
+
+      // If both languages, separate the results
+      if (language === "both" && languages.length === 2) {
+        // Tesseract returns combined results, we'll show it as is
+        // The model tries to detect and recognize both languages
+        extracted = `🇧🇩 বাংলা + 🇬🇧 English:\n\n${extracted}`;
+      } else if (language === "bangla") {
+        extracted = `🇧🇩 বাংলা:\n\n${extracted}`;
+      } else {
+        extracted = `🇬🇧 English:\n\n${extracted}`;
+      }
+
+      setExtractedText(extracted || "No text detected in the image.");
     } catch (error) {
       console.error("OCR processing failed:", error);
       setExtractedText("Error processing file. Please try again.");
     } finally {
       setIsProcessing(false);
+      setProgress(0);
+      setStatus("");
     }
   };
 
@@ -279,7 +319,7 @@ export default function Home() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     />
                   </svg>
-                  Processing...
+                  <span>{status || "Processing..."}</span>
                 </>
               ) : (
                 <>
